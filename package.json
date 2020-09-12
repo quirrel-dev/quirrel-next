@@ -5,7 +5,8 @@
   "private": false,
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc"
+    "build": "tsc",
+    "prepare": "npm run-script build"
   },
   "files": [
     "LICENSE",
@@ -27,6 +28,7 @@
   },
   "devDependencies": {
     "@types/node": "^14.6.4",
+    "next": "^9.5.3",
     "typescript": "^4.0.2"
   }
 }
