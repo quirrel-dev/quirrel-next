@@ -7,7 +7,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc"
   },
-  "files": ["LICENSE", "dist/", "src/"],
+  "files": [
+    "LICENSE",
+    "dist/",
+    "src/"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/quirrel-dev/quirrel-next.git"
@@ -18,8 +22,8 @@
     "url": "https://github.com/quirrel-dev/quirrel-next/issues"
   },
   "homepage": "https://github.com/quirrel-dev/quirrel-next#readme",
-  "dependencies": {
-    "next": "^9.5.3"
+  "peerDependencies": {
+    "next": "9.x"
   },
   "devDependencies": {
     "@types/node": "^14.6.4",
