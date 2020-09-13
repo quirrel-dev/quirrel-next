@@ -1,5 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { createJob } from "./api";
+import { verify } from "secure-webhooks";
+import { token } from "./env";
 
 const baseUrl =
   "https://" + (process.env.VERCEL_URL || "localhost:3000") + "/api/";
@@ -17,7 +19,21 @@ export function Queue<Payload>(
   handler: (payload: Payload) => Promise<void>
 ): QueueResult<Payload> {
   async function nextApiHandler(req: NextApiRequest, res: NextApiResponse) {
-    const { body } = req.body as { body: Payload };
+    if (process.env.NODE_ENV === "production") {
+      const signature = req.headers["x-quirrel-signature"] as
+        | string
+        | undefined;
+      if (!signature) {
+        return res.status(401).end();
+      }
+
+      const isTrustWorthy = verify(req.body, token!, signature);
+      if (!isTrustWorthy) {
+        return res.status(401).end();
+      }
+    }
+
+    const { body } = JSON.parse(req.body) as { body: Payload };
     console.log(`Received job to ${path}: `, body);
     try {
       await handler(body);
@@ -37,11 +53,10 @@ export function Queue<Payload>(
     await createJob(baseUrl + path, runAt, { body: payload });
 
     if (runAt) {
-        console.log(`Created job for ${path} to run at ${runAt.toISOString()}.`);    
+      console.log(`Created job for ${path} to run at ${runAt.toISOString()}.`);
     } else {
-        console.log(`Created job for ${path} to run now.`);
+      console.log(`Created job for ${path} to run now.`);
     }
-    
   };
 
   return nextApiHandler;
