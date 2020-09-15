@@ -3,8 +3,23 @@ import { createJob } from "./api";
 import { verify } from "secure-webhooks";
 import { token } from "./env";
 
-const baseUrl =
-  "https://" + (process.env.VERCEL_URL || "localhost:3000") + "/api/";
+let baseUrl: string | undefined = undefined;
+
+if (process.env.VERCEL_URL) {
+  baseUrl = `https://${process.env.VERCEL_URL}/api/`;
+}
+
+if (process.env.QUIRREL_BASE_URL) {
+  baseUrl = `${process.env.QUIRREL_BASE_URL}/api/`;
+}
+
+if (!baseUrl) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Please specify QUIRREL_BASE_URL.");
+  } else {
+    baseUrl = "http://localhost:3000/api/";
+  }
+}
 
 interface EnqueueMeta {
   // milliseconds to delay
@@ -32,6 +47,8 @@ export function Queue<Payload>(
         return res.status(401).end();
       }
     }
+
+    console.log({ body: req.body, headers: req.headers })
 
     const { body } = JSON.parse(req.body) as { body: Payload };
     console.log(`Received job to ${path}: `, body);

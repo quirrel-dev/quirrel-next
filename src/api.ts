@@ -1,4 +1,12 @@
-const baseUrl = process.env.QUIRREL_URL || "https://api.quirrel.dev";
+let baseUrl = process.env.QUIRREL_URL;
+
+if (!baseUrl) {
+  if (process.env.NODE_ENV === "production") {
+    baseUrl = "https://api.quirrel.dev"
+  } else {
+    baseUrl = "http://localhost:9181"
+  }
+}
 
 const token = process.env.QUIRREL_TOKEN;
 
