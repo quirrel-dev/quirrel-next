@@ -48,8 +48,6 @@ export function Queue<Payload>(
       }
     }
 
-    console.log({ body: req.body, headers: req.headers })
-
     const { body } = JSON.parse(req.body) as { body: Payload };
     console.log(`Received job to ${path}: `, body);
     try {
