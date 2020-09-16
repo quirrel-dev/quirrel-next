@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { createJob } from "./api";
+import { createJob, CreateJobPayload, CreateJobResult, deleteJob } from "./api";
 import { verify } from "secure-webhooks";
 import { token } from "./env";
 
@@ -21,13 +21,14 @@ if (!baseUrl) {
   }
 }
 
-interface EnqueueMeta {
-  // milliseconds to delay
-  delay: number;
+type Enqueue<Payload> = (
+  payload: Payload,
+  meta?: Omit<CreateJobPayload, "body" | "endpoint">
+) => Promise<CreateJobResult>;
+interface QueueResult<Payload> {
+  enqueue: Enqueue<Payload>;
+  delete: (jobId: string) => Promise<boolean>;
 }
-
-type Enqueue<Payload> = (payload: Payload, meta?: EnqueueMeta) => Promise<void>;
-type QueueResult<Payload> = { enqueue: Enqueue<Payload> };
 
 export function Queue<Payload>(
   path: string,
@@ -59,19 +60,27 @@ export function Queue<Payload>(
     }
   }
 
-  nextApiHandler.enqueue = async (payload: Payload, meta?: EnqueueMeta) => {
-    let runAt = undefined;
-    if (meta) {
-      runAt = new Date(Date.now() + meta.delay);
-    }
+  nextApiHandler.enqueue = async (
+    payload: Payload,
+    meta?: Omit<CreateJobPayload, "body" | "endpoint">
+  ) => {
+    const job = await createJob({
+      endpoint: baseUrl + path,
+      body: payload,
+      ...meta,
+    });
 
-    await createJob(baseUrl + path, runAt, { body: payload });
+    console.log(`Created job for ${path}.`);
 
-    if (runAt) {
-      console.log(`Created job for ${path} to run at ${runAt.toISOString()}.`);
-    } else {
-      console.log(`Created job for ${path} to run now.`);
-    }
+    return job;
+  };
+
+  nextApiHandler.delete = async (jobId: string) => {
+    const success = await deleteJob(jobId);
+
+    console.log(`Deleted job ${jobId}.`);
+
+    return success;
   };
 
   return nextApiHandler;
