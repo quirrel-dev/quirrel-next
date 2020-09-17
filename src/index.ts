@@ -66,7 +66,7 @@ export function Queue<Payload>(
   ) => {
     const job = await createJob({
       endpoint: baseUrl + path,
-      body: payload,
+      body: { body: payload },
       ...meta,
     });
 
