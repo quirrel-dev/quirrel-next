@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { verify } from "secure-webhooks";
 import { token } from "./env";
-import { QuirrelClient, EnqueueJobOpts, Job } from "@quirrel/client"
+import { QuirrelClient, EnqueueJobOpts, Job } from "@quirrel/client";
 
 let baseUrl: string | undefined = undefined;
 
@@ -25,30 +25,30 @@ type Enqueue<Payload> = (
   payload: Payload,
   meta?: Omit<EnqueueJobOpts, "body">
 ) => Promise<Job>;
-interface QueueResult<Payload> {
+interface QueueResult<Payload> extends Omit<QuirrelClient, "enqueue"> {
   enqueue: Enqueue<Payload>;
-  delete: (jobId: string) => Promise<Job | null>;
 }
 
 export function Queue<Payload>(
   path: string,
   handler: (payload: Payload) => Promise<void>
 ): QueueResult<Payload> {
-  const quirrel = new QuirrelClient(
-    async req => {
-      const res = await fetch(req.url, {
-        method: req.method,
-        headers: req.headers,
-        body: req.body
-      })
+  const endpoint = baseUrl + path;
 
-      return {
-        status: res.status,
-        body: await res.text(),
-        headers: res.headers as unknown as Record<string, string>
-      }
-    }
-  )
+  const quirrel = new QuirrelClient(async (req) => {
+    const res = await fetch(req.url, {
+      method: req.method,
+      headers: req.headers,
+      body: req.body,
+    });
+
+    return {
+      status: res.status,
+      body: await res.text(),
+      headers: (res.headers as unknown) as Record<string, string>,
+    };
+  });
+
   async function nextApiHandler(req: NextApiRequest, res: NextApiResponse) {
     if (process.env.NODE_ENV === "production") {
       const signature = req.headers["x-quirrel-signature"] as
@@ -79,7 +79,7 @@ export function Queue<Payload>(
     payload: Payload,
     meta?: Omit<EnqueueJobOpts, "body">
   ) => {
-    const job = await quirrel.enqueue(baseUrl + path, {
+    const job = await quirrel.enqueue(endpoint, {
       body: { body: payload },
       ...meta,
     });
@@ -88,12 +88,16 @@ export function Queue<Payload>(
   };
 
   nextApiHandler.delete = async (jobId: string) => {
-    const success = await quirrel.delete(jobId)
+    const success = await quirrel.delete(endpoint, jobId);
 
     console.log(`Deleted job ${jobId}.`);
 
     return success;
   };
+
+  nextApiHandler.get = () => quirrel.get(endpoint);
+
+  nextApiHandler.getById = (jobId: string) => quirrel.getById(endpoint, jobId);
 
   return nextApiHandler;
 }
