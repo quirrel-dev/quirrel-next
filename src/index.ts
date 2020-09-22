@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { verify } from "secure-webhooks";
-import { token } from "./env";
 import { QuirrelClient, EnqueueJobOpts, Job } from "@quirrel/client";
 
 let baseUrl: string | undefined = undefined;
@@ -25,7 +24,10 @@ type Enqueue<Payload> = (
   payload: Payload,
   meta?: Omit<EnqueueJobOpts, "body">
 ) => Promise<Job>;
-interface QueueResult<Payload> extends Omit<QuirrelClient, "enqueue"> {
+interface QueueResult<Payload> {
+  get(): AsyncIterator<Job[]>;
+  getById(id: string): Promise<Job | null>;
+  delete(id: string): Promise<Job | null>;
   enqueue: Enqueue<Payload>;
 }
 
@@ -58,7 +60,7 @@ export function Queue<Payload>(
         return res.status(401).end();
       }
 
-      const isTrustWorthy = verify(req.body, token!, signature);
+      const isTrustWorthy = verify(req.body, quirrel.token!, signature);
       if (!isTrustWorthy) {
         return res.status(401).end();
       }
