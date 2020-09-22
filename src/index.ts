@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { createJob, CreateJobPayload, CreateJobResult, deleteJob } from "./api";
 import { verify } from "secure-webhooks";
 import { token } from "./env";
+import { QuirrelClient, EnqueueJobOpts, Job } from "@quirrel/client"
 
 let baseUrl: string | undefined = undefined;
 
@@ -23,17 +23,32 @@ if (!baseUrl) {
 
 type Enqueue<Payload> = (
   payload: Payload,
-  meta?: Omit<CreateJobPayload, "body" | "endpoint">
-) => Promise<CreateJobResult>;
+  meta?: Omit<EnqueueJobOpts, "body">
+) => Promise<Job>;
 interface QueueResult<Payload> {
   enqueue: Enqueue<Payload>;
-  delete: (jobId: string) => Promise<boolean>;
+  delete: (jobId: string) => Promise<Job | null>;
 }
 
 export function Queue<Payload>(
   path: string,
   handler: (payload: Payload) => Promise<void>
 ): QueueResult<Payload> {
+  const quirrel = new QuirrelClient(
+    async req => {
+      const res = await fetch(req.url, {
+        method: req.method,
+        headers: req.headers,
+        body: req.body
+      })
+
+      return {
+        status: res.status,
+        body: await res.text(),
+        headers: res.headers as unknown as Record<string, string>
+      }
+    }
+  )
   async function nextApiHandler(req: NextApiRequest, res: NextApiResponse) {
     if (process.env.NODE_ENV === "production") {
       const signature = req.headers["x-quirrel-signature"] as
@@ -62,21 +77,18 @@ export function Queue<Payload>(
 
   nextApiHandler.enqueue = async (
     payload: Payload,
-    meta?: Omit<CreateJobPayload, "body" | "endpoint">
+    meta?: Omit<EnqueueJobOpts, "body">
   ) => {
-    const job = await createJob({
-      endpoint: baseUrl + path,
+    const job = await quirrel.enqueue(baseUrl + path, {
       body: { body: payload },
       ...meta,
     });
-
-    console.log(`Created job for ${path}.`);
 
     return job;
   };
 
   nextApiHandler.delete = async (jobId: string) => {
-    const success = await deleteJob(jobId);
+    const success = await quirrel.delete(jobId)
 
     console.log(`Deleted job ${jobId}.`);
 
