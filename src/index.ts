@@ -1,5 +1,4 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { verify } from "secure-webhooks";
 import { QuirrelClient, EnqueueJobOpts, Job } from "@quirrel/client";
 
 let baseUrl: string | undefined = undefined;
@@ -20,6 +19,17 @@ if (!baseUrl) {
   }
 }
 
+const encryptionSecret = process.env.QUIRREL_ENCRYPTION_SECRET;
+if (process.env.NODE_ENV === "production") {
+  if (!encryptionSecret) {
+    throw new Error("Please specify `QUIRREL_ENCRYPTION_SECRET`.");
+  }
+
+  if (encryptionSecret.length !== 32) {
+    throw new Error("`QUIRREL_ENCRYPTION_SECRET` must have length 32.");
+  }
+}
+
 type Enqueue<Payload> = (
   payload: Payload,
   meta?: Omit<EnqueueJobOpts, "body">
@@ -37,39 +47,36 @@ export function Queue<Payload>(
 ): QueueResult<Payload> {
   const endpoint = baseUrl + path;
 
-  const quirrel = new QuirrelClient(async (req) => {
-    const res = await fetch(req.url, {
-      method: req.method,
-      headers: req.headers,
-      body: req.body,
-    });
+  const quirrel = new QuirrelClient({
+    async fetcher(req) {
+      const res = await fetch(req.url, {
+        method: req.method,
+        headers: req.headers,
+        body: req.body,
+      });
 
-    return {
-      status: res.status,
-      body: await res.text(),
-      headers: (res.headers as unknown) as Record<string, string>,
-    };
+      return {
+        status: res.status,
+        body: await res.text(),
+        headers: (res.headers as unknown) as Record<string, string>,
+      };
+    },
+    encryptionSecret,
   });
 
   async function nextApiHandler(req: NextApiRequest, res: NextApiResponse) {
-    if (process.env.NODE_ENV === "production") {
-      const signature = req.headers["x-quirrel-signature"] as
-        | string
-        | undefined;
-      if (!signature) {
-        return res.status(401).end();
-      }
-
-      const isTrustWorthy = verify(req.body, quirrel.token!, signature);
-      if (!isTrustWorthy) {
-        return res.status(401).end();
-      }
+    const { isValid, body } = quirrel.verifyRequestSignature<{
+      body: Payload;
+    }>(req.headers as any, req.body);
+    if (!isValid) {
+      return res.status(401).end();
     }
 
-    const { body } = JSON.parse(req.body) as { body: Payload };
-    console.log(`Received job to ${path}: `, body);
+    const { body: payload } = body!;
+
+    console.log(`Received job to ${path}: `, payload);
     try {
-      await handler(body);
+      await handler(payload);
       res.status(200).end();
     } catch (error) {
       res.status(500).json(error);
