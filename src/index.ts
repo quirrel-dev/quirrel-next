@@ -38,6 +38,7 @@ interface QueueResult<Payload> {
   get(): AsyncIterator<Job[]>;
   getById(id: string): Promise<Job | null>;
   delete(id: string): Promise<Job | null>;
+  invoke(id: string): Promise<Job | null>;
   enqueue: Enqueue<Payload>;
 }
 
@@ -100,6 +101,13 @@ export function Queue<Payload>(
     const success = await quirrel.delete(endpoint, jobId);
 
     console.log(`Deleted job ${jobId}.`);
+    return success;
+  };
+
+  nextApiHandler.invoke = async (jobId: string) => {
+    const success = await quirrel.invoke(endpoint, jobId);
+
+    console.log(`Invoked job ${jobId}.`);
 
     return success;
   };
