@@ -4,7 +4,7 @@ Quirrel is the Task Queueing Solution for Next.js X Vercel.
 
 ## Getting Started
 
-> ‼ Quirrel is currently in development and not meant for production usage. Here be dragons. ‼
+> Check out [Getting Started Guide](https://docs.quirrel.dev) or the [Quirrel Tutorial](https://dev.to/quirrel/building-a-water-drinking-reminder-with-next-js-and-quirrel-1ckj) to get the full picture.
 
 1. `npm install @quirrel/next`
 2. Create a new API Route and export a Quirrel Queue:
