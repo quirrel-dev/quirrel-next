@@ -37,8 +37,8 @@ type Enqueue<Payload> = (
 interface QueueResult<Payload> {
   get(): AsyncIterator<Job[]>;
   getById(id: string): Promise<Job | null>;
-  delete(id: string): Promise<Job | null>;
-  invoke(id: string): Promise<Job | null>;
+  delete(id: string): Promise<boolean>;
+  invoke(id: string): Promise<boolean>;
   enqueue: Enqueue<Payload>;
 }
 
@@ -49,19 +49,6 @@ export function Queue<Payload>(
   const endpoint = baseUrl + path;
 
   const quirrel = new QuirrelClient({
-    async fetcher(req) {
-      const res = await fetch(req.url, {
-        method: req.method,
-        headers: req.headers,
-        body: req.body,
-      });
-
-      return {
-        status: res.status,
-        body: await res.text(),
-        headers: (res.headers as unknown) as Record<string, string>,
-      };
-    },
     encryptionSecret,
   });
 
@@ -88,29 +75,15 @@ export function Queue<Payload>(
   nextApiHandler.enqueue = async (
     payload: Payload,
     meta?: Omit<EnqueueJobOpts, "body">
-  ) => {
-    const job = await quirrel.enqueue(endpoint, {
+  ) =>
+    quirrel.enqueue(endpoint, {
       body: { body: payload },
       ...meta,
     });
 
-    return job;
-  };
+  nextApiHandler.delete = (jobId: string) => quirrel.delete(endpoint, jobId);
 
-  nextApiHandler.delete = async (jobId: string) => {
-    const success = await quirrel.delete(endpoint, jobId);
-
-    console.log(`Deleted job ${jobId}.`);
-    return success;
-  };
-
-  nextApiHandler.invoke = async (jobId: string) => {
-    const success = await quirrel.invoke(endpoint, jobId);
-
-    console.log(`Invoked job ${jobId}.`);
-
-    return success;
-  };
+  nextApiHandler.invoke = (jobId: string) => quirrel.invoke(endpoint, jobId);
 
   nextApiHandler.get = () => quirrel.get(endpoint);
 
