@@ -1,5 +1,10 @@
 import { NextApiRequest, NextApiResponse } from "next";
-import { QuirrelClient, EnqueueJobOpts, Job } from "@quirrel/client";
+import {
+  QuirrelClient,
+  EnqueueJobOpts,
+  Job,
+  DefaultJobOptions,
+} from "@quirrel/client";
 
 let baseUrl: string | undefined = undefined;
 
@@ -44,12 +49,14 @@ interface QueueResult<Payload> {
 
 export function Queue<Payload>(
   path: string,
-  handler: (payload: Payload) => Promise<void>
+  handler: (payload: Payload) => Promise<void>,
+  defaultJobOptions?: DefaultJobOptions
 ): QueueResult<Payload> {
   const endpoint = baseUrl + path;
 
   const quirrel = new QuirrelClient({
     encryptionSecret,
+    defaultJobOptions,
   });
 
   async function nextApiHandler(req: NextApiRequest, res: NextApiResponse) {

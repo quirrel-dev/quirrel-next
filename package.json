@@ -32,6 +32,6 @@
     "typescript": "^4.0.2"
   },
   "dependencies": {
-    "@quirrel/client": "^0.8.0"
+    "@quirrel/client": "^0.10.0"
   }
 }
