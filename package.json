@@ -1,6 +1,6 @@
 {
   "name": "@quirrel/next",
-  "version": "0.8.1",
+  "version": "0.10.0",
   "main": "dist/index.js",
   "private": false,
   "scripts": {
