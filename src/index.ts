@@ -6,6 +6,14 @@ import {
   DefaultJobOptions,
 } from "@quirrel/client";
 
+function urlWithPrefix(url: string) {
+  if (url.startsWith("https://") || url.startsWith("http://")) {
+    return url;
+  }
+
+  return "https://" + url;
+}
+
 let baseUrl: string | undefined = undefined;
 
 if (process.env.VERCEL_URL) {
@@ -23,6 +31,8 @@ if (!baseUrl) {
     baseUrl = "http://localhost:3000/api/";
   }
 }
+
+baseUrl = urlWithPrefix(baseUrl);
 
 const encryptionSecret = process.env.QUIRREL_ENCRYPTION_SECRET;
 if (process.env.NODE_ENV === "production") {
@@ -79,7 +89,7 @@ export function Queue<Payload>(
     }
   }
 
-  nextApiHandler.enqueue = async (
+  nextApiHandler.enqueue = (
     payload: Payload,
     meta?: Omit<EnqueueJobOpts, "body">
   ) =>
